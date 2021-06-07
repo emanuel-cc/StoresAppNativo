@@ -1,4 +1,4 @@
-package com.example.stores
+package com.example.stores.editModule
 
 import android.content.Context
 import android.os.Bundle
@@ -8,23 +8,36 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.example.stores.R
+import com.example.stores.StoreApplication
+import com.example.stores.common.entities.StoreEntity
 import com.example.stores.databinding.FragmentEditStoreBinding
+import com.example.stores.editModule.viewModel.EditStoreViewModel
+import com.example.stores.mainModule.MainActivity
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputLayout
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
-import java.security.AllPermission
 
 class EditStoreFragment : Fragment() {
     private lateinit var mBinding: FragmentEditStoreBinding
-    private var mActivity:MainActivity? = null
+    //MVVM
+    private lateinit var mEditStoreViewModel:EditStoreViewModel
+
+    private var mActivity: MainActivity? = null
 
     // Se distingue si vamos a editar o a agregar
     private var mIsEditMode:Boolean = false
-    private var mStoreEntity:StoreEntity? = null
+    private lateinit var mStoreEntity: StoreEntity
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        //Se inicializa el viewmodel
+        mEditStoreViewModel = ViewModelProvider(requireActivity()).get(EditStoreViewModel::class.java)
+    }
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -43,28 +56,69 @@ class EditStoreFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Se recibe los argumentos enviados desde el activity
-        val id = arguments?.getLong(getString(R.string.arg_id), 0)
-        // Se pregunta si el id es diferente de null y de 0
-        if(id != null && id != 0L){
-            //Toast.makeText(activity, id.toString(), Toast.LENGTH_SHORT).show()
-            mIsEditMode = true
-            // Se llama a la función que permite obtener la información de una sola tienda
-            getStore(id)
-        }else{
-            mIsEditMode = false
-            mStoreEntity = StoreEntity(
-                name = "",
-                phone = "",
-                photoUrl = ""
-            )
-        }
 
-        //Se llama al método para configurar el actionbar
-        setupActionBar()
+        //MVVM
+        setupViewModel()
 
         // Se llama la función de la configuración de los textfields
         setupTextFields()
+    }
+
+    private fun setupViewModel() {
+        mEditStoreViewModel.getStoreSelected().observe(viewLifecycleOwner, {
+            //Se obtiene el nuevo valor
+            mStoreEntity = it
+            // Se pregunta si el id es diferente de null y de 0
+            if(it.id != 0L){
+                //Toast.makeText(activity, id.toString(), Toast.LENGTH_SHORT).show()
+                mIsEditMode = true
+                //Contendrá el elemento seleccionado
+                setUiStore(it)
+            }else{
+                mIsEditMode = false
+            }
+
+            //Se llama al método para configurar el actionbar
+            setupActionBar()
+        })
+
+        mEditStoreViewModel.getResult().observe(viewLifecycleOwner, { result ->
+            hideKeyboard()
+            when(result){
+                //Cuando es un nuevo registro
+                is Long ->{
+                    // Se reasigna el id
+                    mStoreEntity.id = result
+                    // Se notifica que hay una nueva tienda
+                    mEditStoreViewModel.setStoreSelected(mStoreEntity)
+                    // TODO: 07/06/2021
+                    //mActivity?.addStore(mStoreEntity!!)
+                    Toast.makeText(
+                        mActivity,
+                        R.string.edit_store_message_save_success,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    mActivity?.onBackPressed()
+                }
+                //Cuando se está actualizando
+                is StoreEntity->{
+                    // Se notifica que hay una tienda actualizada
+                    mEditStoreViewModel.setStoreSelected(mStoreEntity)
+
+                    // Aquí actualizamos los datos de la tienda cuando estamos en modo
+                    // edit
+                    // TODO: 07/06/2021  viewmodel
+                    //mActivity?.updateStore(mStoreEntity!!)
+                    Snackbar.make(mBinding.root,
+                        R.string.edit_store_message_update_success,
+                        Snackbar.LENGTH_SHORT).show()
+                }
+            }
+            // Almacena los datos de la tienda, para almacenarla o editarlo
+            /*Snackbar.make(mBinding.root, getString(R.string.edit_store_message_save_success),
+            Snackbar.LENGTH_SHORT).show()*/
+
+        })
     }
 
     //Método que sirve para configurar el actionbar
@@ -116,7 +170,7 @@ class EditStoreFragment : Fragment() {
     }
 
     // Permite obtener los datos de una tienda
-    private fun getStore(id: Long) {
+    /*private fun getStore(id: Long) {
         // Usamos anko para peticiones asíncronas y en segundo plano
         doAsync {
             mStoreEntity = StoreApplication.database.storeDao().getStoreById(id)
@@ -130,7 +184,7 @@ class EditStoreFragment : Fragment() {
                 }
             }
         }
-    }
+    }*/
 
     // Permite asignar los datos a los elementos de la interfaz del fragmento
     private fun setUiStore(storeEntity: StoreEntity) {
@@ -163,52 +217,26 @@ class EditStoreFragment : Fragment() {
             // El que tiene el ícono del check
             R.id.action_save -> {
                 // Valida si el objeto storeentity es diferente de null y que no esté vacío
-               if(mStoreEntity != null &&
-                   validateFields(mBinding.tilPhotoUrl, mBinding.tilPhone, mBinding.tilName)){
+               if(validateFields(mBinding.tilPhotoUrl, mBinding.tilPhone, mBinding.tilName)){
                    /* val store = StoreEntity(name = mBinding.editName.text.toString().trim(),
                     phone = mBinding.editPhone.text.toString(),
                     website = mBinding.editWebSite.text.toString(),
                     photoUrl = mBinding.editPhotoUrl.text.toString().trim())*/
 
-                   with(mStoreEntity!!){
+                   with(mStoreEntity){
                        name = mBinding.editName.text.toString().trim()
                        phone = mBinding.editPhone.text.toString()
                        website = mBinding.editWebSite.text.toString()
                        photoUrl = mBinding.editPhotoUrl.text.toString().trim()
                    }
 
-                   // Anko
-                   doAsync {
-                       // Se pregunta si está en modo editable o modo para agregar elemento
-                       if(mIsEditMode){
-                           StoreApplication.database.storeDao().updateStore(mStoreEntity!!)
-                       }else{
-                           mStoreEntity!!.id = StoreApplication.database.storeDao().addStore(mStoreEntity!!)
-                       }
-
-                       uiThread {
-                           hideKeyboard()
-                           // Almacena los datos de la tienda, para almacenarla o editarlo
-                           /*Snackbar.make(mBinding.root, getString(R.string.edit_store_message_save_success),
-                           Snackbar.LENGTH_SHORT).show()*/
-
-                           if(mIsEditMode){
-                               // Aquí actualizamos los datos de la tienda cuando estamos en modo
-                               // edit
-                               mActivity?.updateStore(mStoreEntity!!)
-                               Snackbar.make(mBinding.root,
-                                   R.string.edit_store_message_update_success,
-                               Snackbar.LENGTH_SHORT).show()
-                           }else {
-                               mActivity?.addStore(mStoreEntity!!)
-                               Toast.makeText(
-                                   mActivity,
-                                   R.string.edit_store_message_save_success,
-                                   Toast.LENGTH_SHORT
-                               ).show()
-                               mActivity?.onBackPressed()
-                           }
-                       }
+                   // Se pregunta si está en modo editable o modo para agregar elemento
+                   if(mIsEditMode){
+                       //StoreApplication.database.storeDao().updateStore(mStoreEntity!!)
+                       mEditStoreViewModel.updateStore(mStoreEntity)
+                   }else{
+                       //mStoreEntity!!.id = StoreApplication.database.storeDao().addStore(mStoreEntity!!)
+                        mEditStoreViewModel.saveStore(mStoreEntity)
                    }
                }
                 true
@@ -284,7 +312,10 @@ class EditStoreFragment : Fragment() {
         mActivity?.supportActionBar?.setDisplayHomeAsUpEnabled(false)
         mActivity?.supportActionBar?.title = getString(R.string.app_name)
         // Mostramos en la pantalla principal el FloatingActionButton
-        mActivity?.hideFab(true)
+        mEditStoreViewModel.setShowFab(true)
+
+        //Limpiar resultados almacenados en el ViewModel
+        mEditStoreViewModel.setResult(Any())
         // Se encarga de desvincularlo de la pantalla principal
         setHasOptionsMenu(false)
         super.onDestroy()

@@ -1,4 +1,4 @@
-package com.example.stores
+package com.example.stores.mainModule.adapter
 
 import android.content.Context
 import android.view.LayoutInflater
@@ -7,9 +7,12 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.example.stores.R
+import com.example.stores.common.entities.StoreEntity
 import com.example.stores.databinding.ItemStoreBinding
+import com.example.stores.mainModule.OnClickListener
 
-class StoreAdapter(private var stores:MutableList<StoreEntity>, private var listener:OnClickListener)
+class StoreAdapter(private var stores:MutableList<StoreEntity>, private var listener: OnClickListener)
     : RecyclerView.Adapter<StoreAdapter.ViewHolder>(){
 
     private lateinit var mContext: Context // Este es un miembro de la clase
@@ -43,20 +46,24 @@ class StoreAdapter(private var stores:MutableList<StoreEntity>, private var list
     }
 
 
-    fun setStores(stores: MutableList<StoreEntity>) {
-        this.stores = stores
+    fun setStores(stores: List<StoreEntity>) {
+        this.stores = stores as MutableList<StoreEntity>
         notifyDataSetChanged()
     }
 
     fun add(storeEntity: StoreEntity) {
-        if(!stores.contains(storeEntity)) {
-            stores.add(storeEntity)
-            // Le indicamos al adaptador que refresque la vista
-            notifyItemInserted(stores.size-1)
+        if (storeEntity.id != 0L) {
+            if(!stores.contains(storeEntity)) {
+                stores.add(storeEntity)
+                // Le indicamos al adaptador que refresque la vista
+                notifyItemInserted(stores.size-1)
+            }else{
+                update(storeEntity)
+            }
         }
     }
 
-    fun update(storeEntity: StoreEntity) {
+    private fun update(storeEntity: StoreEntity) {
         val index = stores.indexOf(storeEntity)
 
         if(index != -1){
@@ -66,22 +73,12 @@ class StoreAdapter(private var stores:MutableList<StoreEntity>, private var list
         }
     }
 
-    fun delete(storeEntity: StoreEntity) {
-        val index = stores.indexOf(storeEntity)
-
-        if(index != -1){
-            stores.removeAt(index)
-            // Va a refrescar el elemento actualizado
-            notifyItemRemoved(index)
-        }
-    }
-
     inner class ViewHolder(view: View): RecyclerView.ViewHolder(view){
         val binding = ItemStoreBinding.bind(view)
         fun setListener(storeEntity: StoreEntity){
             with(binding.root) {
                 setOnClickListener {
-                    listener.onClick(storeEntity.id)
+                    listener.onClick(storeEntity)
                 }
                 setOnLongClickListener {
                     listener.onDeleteStore(storeEntity)

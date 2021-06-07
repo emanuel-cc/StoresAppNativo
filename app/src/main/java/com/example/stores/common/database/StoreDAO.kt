@@ -1,6 +1,7 @@
-package com.example.stores
+package com.example.stores.common.database
 
 import androidx.room.*
+import com.example.stores.common.entities.StoreEntity
 
 @Dao
 interface StoreDAO {
@@ -8,7 +9,7 @@ interface StoreDAO {
     fun getAllStores():MutableList<StoreEntity>
 
     @Query("SELECT * FROM StoreEntity where id = :id")
-    fun getStoreById(id:Long):StoreEntity
+    fun getStoreById(id:Long): StoreEntity
 
     @Insert
     fun addStore(storeEntity: StoreEntity):Long

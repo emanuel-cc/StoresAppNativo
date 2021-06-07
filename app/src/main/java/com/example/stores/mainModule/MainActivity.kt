@@ -1,4 +1,4 @@
-package com.example.stores
+package com.example.stores.mainModule
 
 import android.content.DialogInterface
 import android.content.Intent
@@ -6,16 +6,28 @@ import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
+import com.example.stores.*
+import com.example.stores.common.utils.MainAuxInterface
+import com.example.stores.common.entities.StoreEntity
 import com.example.stores.databinding.ActivityMainBinding
+import com.example.stores.editModule.EditStoreFragment
+import com.example.stores.editModule.viewModel.EditStoreViewModel
+import com.example.stores.mainModule.adapter.StoreAdapter
+import com.example.stores.mainModule.viewModel.MainViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.uiThread
 
-class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
+class MainActivity : AppCompatActivity(), OnClickListener {
     private lateinit var mBinding: ActivityMainBinding
-    private lateinit var mAdapter:StoreAdapter
+    private lateinit var mAdapter: StoreAdapter
     private lateinit var mGridLayout:GridLayoutManager
+
+    //MVVM
+    private lateinit var mMainViewModel: MainViewModel
+    private lateinit var mEditStoreViewModel: EditStoreViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,11 +49,45 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
         mBinding.fab.setOnClickListener {
             launchEditFragment()
         }
+
+        setupViewModel()
         setupRecyclerView()
     }
 
+    // Sirve para el manejo de datos, proveniente de MainViewModel
+    private fun setupViewModel() {
+        // Se inicializa la propiedad viewmodel
+        mMainViewModel = ViewModelProvider(this).get(MainViewModel::class.java)
+        // Se quiere ver cualquier cambio que ocurra
+        mMainViewModel.getStores().observe(this, { stores->
+            mAdapter.setStores(stores)
+        })
+
+        //Se inicializa editstoreviewmodel
+        mEditStoreViewModel = ViewModelProvider(this).get(EditStoreViewModel::class.java)
+        // Mandamos a llamar al observable del floatingactionbutton
+        mEditStoreViewModel.getShowFab().observe(this, { isVisible ->
+            if(isVisible){
+                mBinding.fab.show()
+            }else{
+                mBinding.fab.hide()
+            }
+        })
+
+        //Se detecta si es un nuevo elemento a agregar o es uno para actualizar los datos
+        mEditStoreViewModel.getStoreSelected().observe(this, { storeEntity->
+            mAdapter.add(storeEntity)
+        })
+    }
+
     // Lanza el editstoreFragment
-    private fun launchEditFragment(args:Bundle?=null) {
+    private fun launchEditFragment(storeEntity: StoreEntity = StoreEntity()) {
+        // Se llama a ocultar el floatingactionbutton
+        mEditStoreViewModel.setShowFab(false)
+
+        //Se tiene el objeto seleccionado, sino estará en blanco
+        mEditStoreViewModel.setStoreSelected(storeEntity)
+
         // Se crea una instancia del fragmento
         val fragment = EditStoreFragment()
 
@@ -50,9 +96,7 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
         // Aquí pasamos argumentos args que le enviaremos el fragmento
         // Preguntamos si args que estamos recibiendo en el método es diferente a null
         // y se lo pasamos al fragment
-        if(args != null){
-            fragment.arguments = args
-        }
+
         // ======================================================
 
         /*
@@ -75,7 +119,7 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
 
         // Se oculta el FloatingActionButton
         //mBinding.fab.hide()
-        hideFab()
+        //hideFab()
     }
 
     // Se hace la inicialización de los componentes del recyclerview
@@ -85,7 +129,7 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
         mGridLayout = GridLayoutManager(this, resources.getInteger(R.integer.main_columns))
 
         // Se hace la consulta a la base de datos
-        getStores()
+        //getStores()
         // Se configura el recyclerview
         mBinding.recView.apply {
             setHasFixedSize(true)
@@ -94,7 +138,7 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
         }
     }
 
-    private fun getStores(){
+    /*private fun getStores(){
         // Se ejecuta el proceso de manera asyncrona
         // Se crea un segundo proceso para traer los datos de la lista
         doAsync {
@@ -104,30 +148,24 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
                 mAdapter.setStores(stores)
             }
         }
-    }
+    }*/
 
     /*
     * OnClickListener
     * */
-    override fun onClick(storeId: Long) {
+    override fun onClick(storeEntity: StoreEntity) {
         // A este bundle le pasaremos los argumentos
-        val args = Bundle()
+        //val args = Bundle()
         //funciona igual que shared preferences o las colecciones tipo map (clave,valor)
-        args.putLong(getString(R.string.arg_id), storeId)
+        //args.putLong(getString(R.string.arg_id), storeId)
         // Le pasamos a la función que lanza el fragmento los argumentos a enviar
-        launchEditFragment(args)
+        launchEditFragment(storeEntity)
     }
 
     override fun onFavoriteStore(storeEntity: StoreEntity) {
-        storeEntity.isFavorite = !storeEntity.isFavorite
 
-        // llamamos a las funciones de anko
-        doAsync {
-            StoreApplication.database.storeDao().updateStore(storeEntity)
-            uiThread {
-                updateStore(storeEntity)
-            }
-        }
+        mMainViewModel.updateStore(storeEntity)
+
     }
 
     // Sirve para eliminar una tienda de la lista en l base de datos
@@ -152,14 +190,11 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
     private fun confirmDelete(storeEntity: StoreEntity){
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.dialog_delete_title)
-            .setPositiveButton(R.string.dialog_delete_confirm,
+            .setPositiveButton(
+                R.string.dialog_delete_confirm,
                 DialogInterface.OnClickListener { dialog, which ->
-                    doAsync {
-                        StoreApplication.database.storeDao().deleteStore(storeEntity)
-                        uiThread {
-                            mAdapter.delete(storeEntity)
-                        }
-                    }
+                    //Delete
+                    mMainViewModel.deleteStore(storeEntity)
                 })
             .setNegativeButton(R.string.dialog_delete_cancel, null)
             .show()
@@ -201,24 +236,4 @@ class MainActivity : AppCompatActivity(), OnClickListener, MainAuxInterface {
         }
     }
 
-    /*
-    * MainAuxInterface
-    * */
-    override fun hideFab(isVisible: Boolean) {
-        if(isVisible){
-            mBinding.fab.show()
-        }else{
-            mBinding.fab.hide()
-        }
-    }
-
-    // Agrega un elemento de la lista para el adaptador
-    override fun addStore(storeEntity: StoreEntity) {
-        mAdapter.add(storeEntity)
-    }
-
-    // Actualiza el elemento de la lista para el adaptador
-    override fun updateStore(storeEntity: StoreEntity) {
-        mAdapter.update(storeEntity)
-    }
 }
