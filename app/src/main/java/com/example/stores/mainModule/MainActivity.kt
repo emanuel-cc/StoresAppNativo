@@ -5,11 +5,11 @@ import android.content.Intent
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import com.example.stores.*
-import com.example.stores.common.utils.MainAuxInterface
 import com.example.stores.common.entities.StoreEntity
 import com.example.stores.databinding.ActivityMainBinding
 import com.example.stores.editModule.EditStoreFragment
@@ -17,8 +17,6 @@ import com.example.stores.editModule.viewModel.EditStoreViewModel
 import com.example.stores.mainModule.adapter.StoreAdapter
 import com.example.stores.mainModule.viewModel.MainViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
 
 class MainActivity : AppCompatActivity(), OnClickListener {
     private lateinit var mBinding: ActivityMainBinding
@@ -61,6 +59,11 @@ class MainActivity : AppCompatActivity(), OnClickListener {
         // Se quiere ver cualquier cambio que ocurra
         mMainViewModel.getStores().observe(this, { stores->
             mAdapter.setStores(stores)
+        })
+
+        mMainViewModel.isShowProgress().observe(this,{ isShowProgress->
+            // Se configura el progressbar
+            mBinding.progressBar.visibility = if(isShowProgress) View.VISIBLE else View.GONE
         })
 
         //Se inicializa editstoreviewmodel

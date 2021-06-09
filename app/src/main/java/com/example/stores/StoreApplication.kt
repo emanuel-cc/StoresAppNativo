@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.stores.common.database.StoreApi
 import com.example.stores.common.database.StoreDatabase
 
 class StoreApplication:Application() {
@@ -12,6 +13,8 @@ class StoreApplication:Application() {
     // companion es similar a la palabra reservada static
     companion object{
         lateinit var database: StoreDatabase
+        //Se crea una variable de tipo storeApi de Volley
+        lateinit var storeApi:StoreApi
     }
 
     override fun onCreate() {
@@ -28,5 +31,9 @@ class StoreApplication:Application() {
             StoreDatabase::class.java, "StoreDatabse")
             .addMigrations(MIGRATION_1_2)
             .build()
+
+        //Volley
+        //Obtenermos la instancia
+        storeApi = StoreApi.getInstance(this)
     }
 }
